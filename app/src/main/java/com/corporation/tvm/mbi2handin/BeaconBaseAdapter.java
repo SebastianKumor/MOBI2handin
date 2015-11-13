@@ -60,7 +60,7 @@ public class BeaconBaseAdapter extends BaseAdapter {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         if (convertView == null) {
-            convertView = inflater.inflate(R.layout.beacon_list_row, null);
+            convertView = inflater.inflate(R.layout.table_view_row, null);
             convertView.setTag(new ViewHolder(convertView));
         }
 

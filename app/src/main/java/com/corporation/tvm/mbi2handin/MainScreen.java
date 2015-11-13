@@ -1,176 +1,224 @@
 package com.corporation.tvm.mbi2handin;
 
+import android.app.Activity;
+import android.app.ListActivity;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.RemoteException;
-import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
+import android.os.Handler;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+import java.util.ArrayList;
+import java.util.UUID;
 
-import org.altbeacon.beacon.Beacon;
-import org.altbeacon.beacon.BeaconConsumer;
-import org.altbeacon.beacon.BeaconManager;
-import org.altbeacon.beacon.BeaconParser;
-import org.altbeacon.beacon.Identifier;
-import org.altbeacon.beacon.MonitorNotifier;
-import org.altbeacon.beacon.RangeNotifier;
-import org.altbeacon.beacon.Region;
 
-import java.util.Collection;
+public class MainScreen extends ListActivity  {
 
-public class MainScreen extends AppCompatActivity implements BeaconConsumer {
-    public static Region mRegion = new Region("Server", Identifier.parse("Here is my UUID"), null, null);
-    private BeaconManager mBeaconManager;
-    private BeaconBaseAdapter beaconBaseAdapter;
-
-    private ListView beaconsListLv;
-
+    private LeDeviceListAdapter mLeDeviceListAdapter;
+    private BluetoothAdapter mBluetoothAdapter;
+    private boolean mScanning;
+    private Handler mHandler;
+    private static final int REQUEST_ENABLE_BT = 1;
+    // Stops scanning after 10 seconds.
+    private static final long SCAN_PERIOD = 10000;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mBeaconManager = BeaconManager.getInstanceForApplication(this);
-        //BEACON PARSER
-        mBeaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"));
-//        mBeaconManager.debug = true;
-        beaconBaseAdapter = new BeaconBaseAdapter(this);
-        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (mBluetoothAdapter == null) {
-            // Device does not support Bluetooth
-        } else {
-            if (!mBluetoothAdapter.isEnabled()) {
-                // Bluetooth is not enable :)
-            }
+        getActionBar().setTitle(R.string.title_device);
+        mHandler = new Handler();
+        // Use this check to determine whether BLE is supported on the device.  Then you can
+        // selectively disable BLE-related features.
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+            Toast.makeText(this, R.string.blue_not_supported, Toast.LENGTH_SHORT).show();
+            finish();
         }
-
-        //Start Monitoring and Ranging
-        mBeaconManager.bind(this);
-    }
-/*
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-
-        View view = inflater.inflate(R.layout.activity_main_screen, container, false);
-
-        //UI
-        beaconsListLv = (ListView) view.findViewById(R.id.beaconsListView);
-
-        //Set Adapter
-        beaconsListLv.setAdapter(beaconBaseAdapter);
-
-        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
+        // BluetoothAdapter through BluetoothManager.
+        final BluetoothManager bluetoothManager =
+                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        mBluetoothAdapter = bluetoothManager.getAdapter();
+        // Checks if Bluetooth is supported on the device.
         if (mBluetoothAdapter == null) {
-            // Device does not support Bluetooth
-        } else {
-            if (!mBluetoothAdapter.isEnabled()) {
-                // Bluetooth is not enable :)
-            }
+            Toast.makeText(this, R.string.error_blue_not_supported, Toast.LENGTH_SHORT).show();
+            finish();
+            return;
         }
-
-        //Start Monitoring and Ranging
-        mBeaconManager.bind(this);
-
-        return view;
     }
-*/
     @Override
-    public void onResume() {
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main_screen, menu);
+        if (!mScanning) {
+            menu.findItem(R.id.menu_stop).setVisible(false);
+            menu.findItem(R.id.menu_scan).setVisible(true);
+            menu.findItem(R.id.menu_refresh).setActionView(null);
+        } else {
+            menu.findItem(R.id.menu_stop).setVisible(true);
+            menu.findItem(R.id.menu_scan).setVisible(false);
+            menu.findItem(R.id.menu_refresh).setActionView(
+                   R.layout.progress_layout_mater);
+        }
+        return true;
+    }
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.menu_scan:
+                mLeDeviceListAdapter.clear();
+                scanLeDevice(true);
+                break;
+            case R.id.menu_stop:
+                scanLeDevice(false);
+                break;
+        }
+        return true;
+    }
+    @Override
+    protected void onResume() {
         super.onResume();
-        if(mBeaconManager.isBound(this)){
-            mBeaconManager.setBackgroundMode(false);
+        // Ensures Bluetooth is enabled on the device.  If Bluetooth is not currently enabled,
+        // fire an intent to display a dialog asking the user to grant permission to enable it.
+        if (!mBluetoothAdapter.isEnabled()) {
+            if (!mBluetoothAdapter.isEnabled()) {
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            }
         }
+        // Initializes list view adapter.
+        mLeDeviceListAdapter = new LeDeviceListAdapter();
+        setListAdapter(mLeDeviceListAdapter);
+        scanLeDevice(true);
     }
-
     @Override
-    public void onPause() {
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        // User chose not to enable Bluetooth.
+        if (requestCode == REQUEST_ENABLE_BT && resultCode == Activity.RESULT_CANCELED) {
+            finish();
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+    }
+    @Override
+    protected void onPause() {
         super.onPause();
-        if(mBeaconManager.isBound(this)){
-            mBeaconManager.setBackgroundMode(true);
-        }
+        scanLeDevice(false);
+        mLeDeviceListAdapter.clear();
     }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        mBeaconManager.unbind(this);
-    }
-
-    @Override
-    public void onBeaconServiceConnect() {
-        try {
-            //Scan lasts for SCAN_PERIOD time
-            mBeaconManager.setForegroundScanPeriod(1000l);
-//        mBeaconManager.setBackgroundScanPeriod(0l);
-            //Wait every SCAN_PERIOD_INBETWEEN time
-            mBeaconManager.setForegroundBetweenScanPeriod(0l);
-            //Update default time with the new one
-            mBeaconManager.updateScanPeriods();
-        }catch (RemoteException e){
-            e.printStackTrace();
-        }
-
-        //Set Monitoring
-        mBeaconManager.setMonitorNotifier(new MonitorNotifier() {
-            @Override
-            public void didEnterRegion(Region region) {
-                Log.d("TEST", "ENTERED beacon region");
-                //Start Raning as soon as you detect a beacon
-                try {
-                    mBeaconManager.startRangingBeaconsInRegion(mRegion);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
+   // @Override
+//    protected void onListItemClick(ListView l, View v, int position, long id) {
+//        final BluetoothDevice device = mLeDeviceListAdapter.getDevice(position);
+//        if (device == null) return;
+//        final Intent intent = new Intent(this, MainScreen.class);
+//        intent.putExtra(MainScreen.Ex, device.getName());
+//        intent.putExtra(MainScreen.EXTRAS_DEVICE_ADDRESS, device.getAddress());
+//        if (mScanning) {
+//            mBluetoothAdapter.stopLeScan(mLeScanCallback);
+//            mScanning = false;
+//        }
+//        startActivity(intent);
+//    }
+    private void scanLeDevice(final boolean enable) {
+        if (enable) {
+            // Stops scanning after a pre-defined scan period.
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    mScanning = false;
+                    mBluetoothAdapter.stopLeScan(mLeScanCallback);
+                    invalidateOptionsMenu();
                 }
+            }, SCAN_PERIOD);
+            mScanning = true;
+            mBluetoothAdapter.startLeScan(mLeScanCallback);
+        } else {
+            mScanning = false;
+            mBluetoothAdapter.stopLeScan(mLeScanCallback);
+        }
+        invalidateOptionsMenu();
+    }
+    // Adapter for holding devices found through scanning.
+    private class LeDeviceListAdapter extends BaseAdapter {
+        private ArrayList<BluetoothDevice> mLeDevices;
+        private LayoutInflater mInflator;
+        public LeDeviceListAdapter() {
+            super();
+            mLeDevices = new ArrayList<BluetoothDevice>();
+            mInflator = MainScreen.this.getLayoutInflater();
+        }
+        public void addDevice(BluetoothDevice device) {
+            if(!mLeDevices.contains(device)) {
+                mLeDevices.add(device);
             }
-
-            @Override
-            public void didExitRegion(Region region) {
-                Log.d("TEST", "EXITED beacon region");
+        }
+        public BluetoothDevice getDevice(int position) {
+            return mLeDevices.get(position);
+        }
+        public void clear() {
+            mLeDevices.clear();
+        }
+        @Override
+        public int getCount() {
+            return mLeDevices.size();
+        }
+        @Override
+        public Object getItem(int i) {
+            return mLeDevices.get(i);
+        }
+        @Override
+        public long getItemId(int i) {
+            return i;
+        }
+        @Override
+        public View getView(int i, View view, ViewGroup viewGroup) {
+            ViewHolder viewHolder;
+            // General ListView optimization code.
+            if (view == null) {
+                view = mInflator.inflate(R.layout.table_view_row, null);
+                viewHolder = new ViewHolder();
+                viewHolder.deviceAddress = (TextView) view.findViewById(R.id.row_address);
+                viewHolder.deviceName = (TextView) view.findViewById(R.id.row_name);
+                view.setTag(viewHolder);
+            } else {
+                viewHolder = (ViewHolder) view.getTag();
             }
+            BluetoothDevice device = mLeDevices.get(i);
+            final String deviceName = device.getName();
+            if (deviceName != null && deviceName.length() > 0)
+                viewHolder.deviceName.setText(deviceName);
+          
 
-            @Override
-            public void didDetermineStateForRegion(int state, Region region) {
-                Log.d("TEST", "SWITCHED from seeing/not seeing beacon to state " + state);
-            }
-        });
-
-        //Set Ranging
-        mBeaconManager.setRangeNotifier(new RangeNotifier() {
-            @Override
-            public void didRangeBeaconsInRegion(final Collection<Beacon> beacons, Region region) {
-                if (beacons != null && beacons.size() > 0) {
-                    MainScreen.this.runOnUiThread(new Runnable() {
+            else
+                viewHolder.deviceName.setText(R.string.unknown_device);
+            viewHolder.deviceAddress.setText(device.getAddress());
+            return view;
+        }
+    }
+    // Device scan callback.
+    private BluetoothAdapter.LeScanCallback mLeScanCallback =
+            new BluetoothAdapter.LeScanCallback() {
+                @Override
+                public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
+                    runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            beaconBaseAdapter.initAll(beacons);
+                            mLeDeviceListAdapter.addDevice(device);
+                            mLeDeviceListAdapter.notifyDataSetChanged();
                         }
                     });
                 }
-            }
-        });
-
-        try {
-            //Start Monitoring
-            mBeaconManager.startMonitoringBeaconsInRegion(mRegion);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    @Override
-    public Context getApplicationContext() {
-        return this;
-    }
-
-    @Override
-    public void unbindService(ServiceConnection serviceConnection) {
-        this.unbindService(serviceConnection);
-    }
-
-    @Override
-    public boolean bindService(Intent intent, ServiceConnection serviceConnection, int mode) {
-        return this.bindService(intent, serviceConnection, mode);
+            };
+    static class ViewHolder {
+        TextView deviceName;
+        TextView deviceAddress;
     }
 }
