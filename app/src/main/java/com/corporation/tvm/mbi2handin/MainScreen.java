@@ -19,6 +19,9 @@ import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import org.altbeacon.beacon.Beacon;
+
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -29,6 +32,7 @@ public class MainScreen extends ListActivity  {
     private BluetoothAdapter mBluetoothAdapter;
     private boolean mScanning;
     private Handler mHandler;
+   private Beacon beacon;
     private static final int REQUEST_ENABLE_BT = 1;
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
@@ -140,6 +144,8 @@ public class MainScreen extends ListActivity  {
             }, SCAN_PERIOD);
             mScanning = true;
             mBluetoothAdapter.startLeScan(mLeScanCallback);
+
+
         } else {
             mScanning = false;
             mBluetoothAdapter.stopLeScan(mLeScanCallback);
@@ -149,10 +155,12 @@ public class MainScreen extends ListActivity  {
     // Adapter for holding devices found through scanning.
     private class LeDeviceListAdapter extends BaseAdapter {
         private ArrayList<BluetoothDevice> mLeDevices;
+        private ArrayList<String> rssis;
         private LayoutInflater mInflator;
         public LeDeviceListAdapter() {
             super();
             mLeDevices = new ArrayList<BluetoothDevice>();
+            rssis=new ArrayList<String>();
             mInflator = MainScreen.this.getLayoutInflater();
         }
         public void addDevice(BluetoothDevice device) {
@@ -162,6 +170,13 @@ public class MainScreen extends ListActivity  {
         }
         public BluetoothDevice getDevice(int position) {
             return mLeDevices.get(position);
+        }
+        public void deviceWithRssi(BluetoothDevice device, String rssi){
+           // rssis.add(rssi);
+            if(!rssis.contains(rssi)) {
+                rssis.add(rssi);
+            }
+
         }
         public void clear() {
             mLeDevices.clear();
@@ -187,19 +202,32 @@ public class MainScreen extends ListActivity  {
                 viewHolder = new ViewHolder();
                 viewHolder.deviceAddress = (TextView) view.findViewById(R.id.row_address);
                 viewHolder.deviceName = (TextView) view.findViewById(R.id.row_name);
+                viewHolder.deviceUuid = (TextView) view.findViewById(R.id.row_uuid);
+                viewHolder.deviceMinor = (TextView) view.findViewById(R.id.row_minor);
+                viewHolder.deviceMajor = (TextView) view.findViewById(R.id.row_major);
+
                 view.setTag(viewHolder);
             } else {
                 viewHolder = (ViewHolder) view.getTag();
             }
             BluetoothDevice device = mLeDevices.get(i);
+            String rssi=rssis.get(i);
+
+            //String rssi =
+
             final String deviceName = device.getName();
             if (deviceName != null && deviceName.length() > 0)
                 viewHolder.deviceName.setText(deviceName);
-          
+
 
             else
                 viewHolder.deviceName.setText(R.string.unknown_device);
             viewHolder.deviceAddress.setText(device.getAddress());
+
+           // String uuid =devic;
+            viewHolder.deviceUuid.setText(rssi);
+//            viewHolder.deviceMajor.setText(device.getType());
+//            viewHolder.deviceMinor.setText(device.getBondState());
             return view;
         }
     }
@@ -207,12 +235,19 @@ public class MainScreen extends ListActivity  {
     private BluetoothAdapter.LeScanCallback mLeScanCallback =
             new BluetoothAdapter.LeScanCallback() {
                 @Override
-                public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
+                public void onLeScan(final BluetoothDevice device, final int rssi, byte[] scanRecord) {
+
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+
                             mLeDeviceListAdapter.addDevice(device);
                             mLeDeviceListAdapter.notifyDataSetChanged();
+
+                            String rsa=Integer.toString(rssi);
+                            if(rsa!=null) {
+                                mLeDeviceListAdapter.deviceWithRssi(device, rsa);
+                            }
                         }
                     });
                 }
@@ -220,5 +255,8 @@ public class MainScreen extends ListActivity  {
     static class ViewHolder {
         TextView deviceName;
         TextView deviceAddress;
+        TextView deviceUuid;
+        TextView deviceMinor;
+        TextView deviceMajor;
     }
 }
