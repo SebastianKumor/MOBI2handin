@@ -16,14 +16,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.altbeacon.beacon.Beacon;
 
 import java.util.ArrayList;
-import java.util.UUID;
 
 
 public class MainScreen extends ListActivity  {
@@ -33,6 +31,7 @@ public class MainScreen extends ListActivity  {
     private boolean mScanning;
     private Handler mHandler;
    private Beacon beacon;
+    private String power;
     private static final int REQUEST_ENABLE_BT = 1;
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
@@ -156,11 +155,13 @@ public class MainScreen extends ListActivity  {
     private class LeDeviceListAdapter extends BaseAdapter {
         private ArrayList<BluetoothDevice> mLeDevices;
         private ArrayList<String> rssis;
+        private ArrayList<String> powers;
         private LayoutInflater mInflator;
         public LeDeviceListAdapter() {
             super();
             mLeDevices = new ArrayList<BluetoothDevice>();
             rssis=new ArrayList<String>();
+            powers=new ArrayList<String>();
             mInflator = MainScreen.this.getLayoutInflater();
         }
         public void addDevice(BluetoothDevice device) {
@@ -175,6 +176,13 @@ public class MainScreen extends ListActivity  {
            // rssis.add(rssi);
             if(!rssis.contains(rssi)) {
                 rssis.add(rssi);
+            }
+
+        }
+        public void deviceWithPower(BluetoothDevice device, String power){
+            // rssis.add(rssi);
+            if(!powers.contains(power)) {
+                powers.add(power);
             }
 
         }
@@ -212,7 +220,9 @@ public class MainScreen extends ListActivity  {
             }
             BluetoothDevice device = mLeDevices.get(i);
             String rssi=rssis.get(i);
-
+            if (powers.size() > 0) {
+                power = powers.get(i);
+            }
             //String rssi =
 
             final String deviceName = device.getName();
@@ -226,6 +236,7 @@ public class MainScreen extends ListActivity  {
 
            // String uuid =devic;
             viewHolder.deviceUuid.setText(rssi);
+            viewHolder.deviceMajor.setText(power);
 //            viewHolder.deviceMajor.setText(device.getType());
 //            viewHolder.deviceMinor.setText(device.getBondState());
             return view;
@@ -235,7 +246,7 @@ public class MainScreen extends ListActivity  {
     private BluetoothAdapter.LeScanCallback mLeScanCallback =
             new BluetoothAdapter.LeScanCallback() {
                 @Override
-                public void onLeScan(final BluetoothDevice device, final int rssi, byte[] scanRecord) {
+                public void onLeScan(final BluetoothDevice device, final int rssi, final byte[] scanRecord) {
 
                     runOnUiThread(new Runnable() {
                         @Override
@@ -243,14 +254,19 @@ public class MainScreen extends ListActivity  {
 
                             mLeDeviceListAdapter.addDevice(device);
                             mLeDeviceListAdapter.notifyDataSetChanged();
-
                             String rsa=Integer.toString(rssi);
+                            String pwr = Byte.toString(scanRecord[2]);
+
+                            if(pwr!=null) {
+                                mLeDeviceListAdapter.deviceWithPower(device, pwr);
+                            }
                             if(rsa!=null) {
                                 mLeDeviceListAdapter.deviceWithRssi(device, rsa);
                             }
                         }
                     });
                 }
+
             };
     static class ViewHolder {
         TextView deviceName;
