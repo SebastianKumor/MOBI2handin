@@ -38,7 +38,7 @@ public class MainScreen extends ListActivity  {
     private boolean mScanning;
     private Handler mHandler;
     private  BeaconManager beaconManager;
-   //private Beacon beacon;
+    //private Beacon beacon;
     private String power;
     private static final int REQUEST_ENABLE_BT = 1;
     // Stops scanning after 10 seconds.
@@ -46,7 +46,7 @@ public class MainScreen extends ListActivity  {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-      //  getActionBar().setTitle(R.string.title_device);
+        //  getActionBar().setTitle(R.string.title_device);
         mHandler = new Handler();
         // Use this check to determine whether BLE is supported on the device.  Then you can
         // selectively disable BLE-related features.
@@ -85,7 +85,7 @@ public class MainScreen extends ListActivity  {
             menu.findItem(R.id.menu_stop).setVisible(true);
             menu.findItem(R.id.menu_scan).setVisible(false);
             menu.findItem(R.id.menu_refresh).setActionView(
-                   R.layout.progress_layout_mater);
+                    R.layout.progress_layout_mater);
         }
         return true;
     }
@@ -101,7 +101,7 @@ public class MainScreen extends ListActivity  {
                 break;
             case  R.id.menu_arduino:
                 Intent intent =new Intent(MainScreen.this,BluetoothActivity.class);
-               this.startActivity(intent);
+                this.startActivity(intent);
         }
         return true;
     }
@@ -182,7 +182,7 @@ public class MainScreen extends ListActivity  {
             return mLeDevices.get(position);
         }
         public void deviceWithRssi(BluetoothDevice device, String rssi){
-           // rssis.add(rssi);
+            // rssis.add(rssi);
             if(!rssis.contains(rssi)) {
                 rssis.add(rssi);
             }
@@ -239,7 +239,7 @@ public class MainScreen extends ListActivity  {
             BluetoothDevice device = mLeDevices.get(i);
 
             //if(rssis.size()>0) {
-                rssi = rssis.get(i);
+            rssi = rssis.get(i);
             IBeaconDevice beacon =beacons.get(i);
 
 
@@ -260,7 +260,7 @@ public class MainScreen extends ListActivity  {
 
 
 
-           // String uuid =devic;
+            // String uuid =devic;
             viewHolder.deviceUuid.setText(rssi);
 
 //            viewHolder.deviceMajor.setText(device.getType());
@@ -303,7 +303,7 @@ public class MainScreen extends ListActivity  {
 
                             if(rsa!=null) {
                                 mLeDeviceListAdapter.deviceWithRssi(device, pwrandrssi);
-                               // mLeDeviceListAdapter.deviceWithPower(device,Double.toString(distance));
+                                // mLeDeviceListAdapter.deviceWithPower(device,Double.toString(distance));
                             }
                         }
                     });
