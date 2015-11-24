@@ -8,9 +8,11 @@ void setup() {
 }
 
 void loop() {
-  while(!Serial.available());
-  
-  var = Serial.read() - '0';
-  analogWrite(LED, var);
-  delay(50);
+  if(Serial.available()){
+    var = Serial.read() - '0';
+  }
+  digitalWrite(LED, HIGH);
+  delay(var*100);
+  digitalWrite(LED, LOW);
+  delay(var*100);
 }
