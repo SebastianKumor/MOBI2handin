@@ -1,6 +1,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools" tools:context=".MainScreen">
-    <item android:id="@+id/action_settings" android:title="@string/action_settings"
-        android:orderInCategory="100" app:showAsAction="never" />
+    <item android:id="@+id/menu_scan" android:title="@string/action_scan"
+        android:orderInCategory="100" app:showAsAction="ifRoom" />
+    <item android:id="@+id/menu_stop" android:title="@string/action_stop"
+        android:orderInCategory="100" app:showAsAction="ifRoom" />
+    <item android:id="@+id/menu_refresh" android:title="@string/action_refresh"
+        android:orderInCategory="100" app:showAsAction="ifRoom" />
+    <item android:id="@+id/menu_arduino" android:title="@string/action_arduino"
+    android:orderInCategory="100" app:showAsAction="ifRoom" />
 </menu>

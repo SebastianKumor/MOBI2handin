@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.corporation.tvm.mbi2handin"
-        minSdkVersion 15
+        minSdkVersion 18
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
@@ -24,7 +24,9 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:23.0.1'
     compile 'com.android.support:design:23.0.1'
+    compile 'com.neovisionaries:nv-bluetooth:1.6'
     compile project(':android-beacon-library-2.6.1')
+    compile 'uk.co.alt236:bluetooth-le-library-android:1.0.0'
 }
 
 
