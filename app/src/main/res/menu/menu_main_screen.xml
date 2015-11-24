@@ -7,4 +7,6 @@
         android:orderInCategory="100" app:showAsAction="ifRoom" />
     <item android:id="@+id/menu_refresh" android:title="@string/action_refresh"
         android:orderInCategory="100" app:showAsAction="ifRoom" />
+    <item android:id="@+id/menu_arduino" android:title="@string/action_arduino"
+    android:orderInCategory="100" app:showAsAction="ifRoom" />
 </menu>

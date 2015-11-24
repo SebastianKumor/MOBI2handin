@@ -10,6 +10,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -19,9 +21,22 @@ import android.widget.BaseAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.altbeacon.beacon.Beacon;
+import com.neovisionaries.bluetooth.ble.advertising.ADPayloadParser;
+import com.neovisionaries.bluetooth.ble.advertising.ADStructure;
+import com.neovisionaries.bluetooth.ble.advertising.IBeacon;
+
+//import org.altbeacon.beacon.Beacon;
+
+import org.altbeacon.beacon.BeaconManager;
+import org.altbeacon.beacon.BeaconParser;
 
 import java.util.ArrayList;
+import java.util.List;
+
+import uk.co.alt236.bluetoothlelib.device.BluetoothLeDevice;
+import uk.co.alt236.bluetoothlelib.device.beacon.BeaconType;
+import uk.co.alt236.bluetoothlelib.device.beacon.BeaconUtils;
+import uk.co.alt236.bluetoothlelib.device.beacon.ibeacon.IBeaconDevice;
 
 
 public class MainScreen extends ListActivity  {
@@ -30,7 +45,8 @@ public class MainScreen extends ListActivity  {
     private BluetoothAdapter mBluetoothAdapter;
     private boolean mScanning;
     private Handler mHandler;
-   private Beacon beacon;
+    private  BeaconManager beaconManager;
+   //private Beacon beacon;
     private String power;
     private static final int REQUEST_ENABLE_BT = 1;
     // Stops scanning after 10 seconds.
@@ -38,7 +54,7 @@ public class MainScreen extends ListActivity  {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getActionBar().setTitle(R.string.title_device);
+      //  getActionBar().setTitle(R.string.title_device);
         mHandler = new Handler();
         // Use this check to determine whether BLE is supported on the device.  Then you can
         // selectively disable BLE-related features.
@@ -57,10 +73,19 @@ public class MainScreen extends ListActivity  {
             finish();
             return;
         }
+        beaconManager = BeaconManager.getInstanceForApplication(this);
+        beaconManager.getBeaconParsers().add(new BeaconParser().
+                setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));  // iBeacons
+        //beaconManager.bind(this);
+
+
+
+
     }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main_screen, menu);
+        menu.findItem(R.id.menu_arduino).setVisible(true);
         if (!mScanning) {
             menu.findItem(R.id.menu_stop).setVisible(false);
             menu.findItem(R.id.menu_scan).setVisible(true);
@@ -83,6 +108,9 @@ public class MainScreen extends ListActivity  {
             case R.id.menu_stop:
                 scanLeDevice(false);
                 break;
+            case  R.id.menu_arduino:
+                Intent intent =new Intent(MainScreen.this,BluetoothActivity.class);
+               this.startActivity(intent);
         }
         return true;
     }
@@ -204,6 +232,7 @@ public class MainScreen extends ListActivity  {
         @Override
         public View getView(int i, View view, ViewGroup viewGroup) {
             ViewHolder viewHolder;
+            String rssi;
             // General ListView optimization code.
             if (view == null) {
                 view = mInflator.inflate(R.layout.table_view_row, null);
@@ -219,10 +248,17 @@ public class MainScreen extends ListActivity  {
                 viewHolder = (ViewHolder) view.getTag();
             }
             BluetoothDevice device = mLeDevices.get(i);
-            String rssi=rssis.get(i);
-            if (powers.size() > 0) {
-                power = powers.get(i);
-            }
+
+            //if(rssis.size()>0) {
+                rssi = rssis.get(i);
+           // }
+//            if (powers.size()<=i){
+//
+//                if (powers.size() > 0) {
+//                    power = powers.get(i);
+//                }
+//            }
+
             //String rssi =
 
             final String deviceName = device.getName();
@@ -251,17 +287,31 @@ public class MainScreen extends ListActivity  {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-
+                            String rsa=Integer.toString(rssi);
+                            String pwrandrssi=rsa;
+                            double distance=100;
                             mLeDeviceListAdapter.addDevice(device);
                             mLeDeviceListAdapter.notifyDataSetChanged();
-                            String rsa=Integer.toString(rssi);
-                            String pwr = Byte.toString(scanRecord[2]);
+                            final BluetoothLeDevice deviceLe = new BluetoothLeDevice(device, rssi, scanRecord, System.currentTimeMillis());
+                            ///alt library code
+                            //mDeviceStore.addDevice(deviceLe);
 
-                            if(pwr!=null) {
-                                mLeDeviceListAdapter.deviceWithPower(device, pwr);
+                            double rssii= Double.parseDouble(rsa);
+
+
+
+                            if (BeaconUtils.getBeaconType(deviceLe) == BeaconType.IBEACON) {
+                                final IBeaconDevice iBeacon = new IBeaconDevice(deviceLe);
+                                double txPower=Double.parseDouble(Integer.toString(iBeacon.getCalibratedTxPower()));
+                                pwrandrssi =rsa+","+Integer.toString(iBeacon.getCalibratedTxPower())+", distance: "+ Math.pow(10d, ((double) txPower - rssii) / (10 * 2));
+                                // DO STUFF
+                                distance =  Math.pow(10d, ((double) txPower - rssii) / (10 * 2));
                             }
+
+
                             if(rsa!=null) {
-                                mLeDeviceListAdapter.deviceWithRssi(device, rsa);
+                                mLeDeviceListAdapter.deviceWithRssi(device, pwrandrssi);
+                               // mLeDeviceListAdapter.deviceWithPower(device,Double.toString(distance));
                             }
                         }
                     });
